@@ -87,3 +87,52 @@ print(off_epa.head(15))
 print(def_epa.head(15))
 
 # -------------------- 3rd down % --------------------
+third_down_off = pbp[pbp["down"] == 3].groupby(["posteam", "game_id"]).agg(
+    att_3rd=("down", "count"),
+    conv_3rd=("first_down", "sum")
+).reset_index()
+
+third_down_off["off_3rd_down_pct"] = (
+    third_down_off["conv_3rd"] / third_down_off["att_3rd"]
+)
+
+third_down_def = pbp[pbp["down"] == 3].groupby(["defteam", "game_id"]).agg(
+    att_3rd_faced=("down", "count"),
+    conv_3rd_allowed=("first_down", "sum")
+).reset_index()
+
+third_down_def["def_3rd_down_pct_allowed"] = (
+    third_down_def["conv_3rd_allowed"] / third_down_def["att_3rd_faced"]
+)
+
+third_down_off = third_down_off.merge(sched[["game_id", "gameday"]], on="game_id", how="left")
+third_down_off = third_down_off.sort_values(["posteam", "gameday"]).reset_index(drop=True)
+third_down_off = add_rolling(third_down_off, "posteam", "off_3rd_down_pct", 3)
+third_down_off = add_rolling(third_down_off, "posteam", "off_3rd_down_pct", 8)
+
+third_down_def = third_down_def.merge(sched[["game_id", "gameday"]], on="game_id", how="left")
+third_down_def = third_down_def.sort_values(["defteam", "gameday"]).reset_index(drop=True)
+third_down_def = add_rolling(third_down_def, "defteam", "def_3rd_down_pct_allowed", 3)
+third_down_def = add_rolling(third_down_def, "defteam", "def_3rd_down_pct_allowed", 8)
+
+print(third_down_off.head(15))
+print(third_down_def.head(15))
+
+# -------------------- Turnover Differential --------------------
+
+turnovers = team_stats[["team", "game_id", "passing_interceptions", "fumbles_lost_total",
+                         "def_interceptions", "fumble_recovery_opp"]].copy()
+
+turnovers["giveaways"] = turnovers["passing_interceptions"] + turnovers["fumbles_lost_total"]
+turnovers["takeaways"] = turnovers["def_interceptions"] + turnovers["fumble_recovery_opp"]
+turnovers["turnover_diff"] = turnovers["takeaways"] - turnovers["giveaways"]
+
+turnovers = turnovers.merge(sched[["game_id", "gameday"]], on="game_id", how="left")
+turnovers = turnovers.sort_values(["team", "gameday"]).reset_index(drop=True)
+
+turnovers = add_rolling(turnovers, "team", "turnover_diff", 3)
+turnovers = add_rolling(turnovers, "team", "turnover_diff", 8)
+
+print(turnovers.head(15))
+
+# -------------------- Red Zone % --------------------
